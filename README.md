@@ -29,7 +29,7 @@ WebRTC P2P video conference example, with person body segmentation and mask. No 
     - local video will be shown in top left video
     - Plase wait few seconds to initialize BodyPix, then masked video will be shown in top right video
   - choose mask type
-    - mask room surrounding a person
+    - mask background surrounding a person
     - mask person
     - no mask
   - type room-id for Ayame Lite service
@@ -44,7 +44,7 @@ WebRTC P2P video conference example, with person body segmentation and mask. No 
     - 自分の映像が、左上にビデオ要素に表示
     - 数秒待つとBodyPixが初期化され、右上のビデオ要素にマスクされた映像が表示
   - マスクの種類は選択可能
-    - mask room ...  人物の周囲の部屋の様子をマスク
+    - mask background ...  人物の周囲の部屋の様子をマスク
     - mask person ... 人物をマスク
     - no mask ... マスク無し
   - Ayame Lite サービスに接続する room-id を指定
