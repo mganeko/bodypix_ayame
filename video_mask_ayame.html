@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>BodyPix Ayame</title>
+    <!-- Load TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.2"></script>
+    <!-- Load BodyPix -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.0"></script>
+
+    <!-- ayame -->    
+    <script src="https://unpkg.com/@open-ayame/ayame-web-sdk@19.9.0/dist/ayame.min.js"></script>
+    <script>
+      const signalingUrl = 'wss://ayame-lite.shiguredo.jp/signaling';
+      const defaultRoomId = 'bodypix-test-room';
+      let ayameConn = null;
+    </script>
+  </head>
+  <body>
+    Run on Chrome 78, using <a href="https://github.com/tensorflow/tfjs-models/tree/master/body-pix">BodyPix</a> and Ayame Lite <a href="https://github.com/OpenAyame/ayame-web-sdk">with web SDK</a>
+    <div>
+      <button id="start_video_button" onclick="startVideo()">Start Video</button>
+      <button id="stop_video_button" onclick="stopVideo()">Stop Video</button>
+      &nbsp;
+      <span id="mask_radio_broup">
+        <input type="radio" name="mask" value="mask_room" checked="1" onclick="setMask('room')">mask room</input>
+        <input type="radio" name="mask" value="mask_person" onclick="setMask('person')">mask person</input>
+        <input type="radio" name="mask" value="no_mask" onclick="setMask('none')">no mask</input>
+      </span>
+      <button id="start_canvas_button" onclick="startCanvasVideo()" style="display: none;">start Canvas Video</button>
+      <button id="stop_canvas_button" onclick="stopCanvasVideo()" style="display: none;">stop Canvas Video</button>
+      &nbsp;
+      <br />
+      room:<input type="text" id="room_id" placeholder="type room-id here" />
+      <button id="connect_button" onclick="connect()">connect</button>
+      <button id="disconnect_button" onclick="disconnect()">disconnect</button>
+    </div>
+    <div>
+      local video, masked video<br />
+      <video id="local_video" width="640px" height="480px" style="border: solid black 1px; width:160px; height:120px"></video>
+      <canvas id="canvas"  width="640px" height="480px" style="border: solid 1px black; width:160px; height:120px;"/>
+    </div>
+    <div>
+      remote video<br />
+      <video id="remote_video" width="640px" height="480px" style="border: solid black 1px; width:320px; height:240px"></video>
+    </div>
+
+    <script>
+      const localVideo = document.getElementById('local_video');
+      const remoteVideo = document.getElementById('remote_video');
+      const canvas = document.getElementById('canvas');
+      const maskRadioGroup = document.getElementById('mask_radio_broup');
+      const roomIdInput = document.getElementById('room_id');
+
+      let localStream = null;
+      let canvasStream = null;
+      let bodyPixNet = null;
+      let animationId = null;
+      let contineuAnimation = false;
+      let bodyPixMaks = null;
+      let segmentTimerId = null;
+      let isConnected = false;
+      let maskType = 'room';
+
+      // ------- bodypix -------
+      async function loadModel() {
+        const net = await bodyPix.load(/** optional arguments, see below **/);
+        bodyPixNet = net;
+        console.log('bodyPix ready');
+        updateUI();
+      }
+      loadModel();
+
+      function setMask(type) {
+        maskType = type;
+      }
+
+      function updateSegment() {
+        const segmeteUpdateTime = 10; // ms
+        if (! bodyPixNet) {
+          console.warn('bodyPix net NOT READY');
+          return;
+        }
+
+        const option = {
+          flipHorizontal: false,
+          internalResolution: 'medium',
+          segmentationThreshold: 0.7,
+          maxDetections: 4,
+          scoreThreshold: 0.5,
+          nmsRadius: 20,
+          minKeypointScore: 0.3,
+          refineSteps: 10
+        };
+
+        if (maskType === 'none') {
+          bodyPixMaks = null;
+          if (contineuAnimation) {
+            segmentTimerId = setTimeout(updateSegment, segmeteUpdateTime);
+          }
+          return;
+        }
+
+        bodyPixNet.segmentPerson(localVideo, option)
+        .then(segmentation => {
+          if (maskType === 'room') {
+            const fgColor = {r:0, g:0, b:0, a:0};
+            const bgColor = {r:127, g:127, b:127, a:255};
+            const personPartImage = bodyPix.toMask(segmentation, fgColor, bgColor);
+            bodyPixMaks = personPartImage;
+          }
+          else if (maskType === 'person') {
+            const fgColor = {r:127, g:127, b:127, a:255};
+            const bgColor = {r:0, g:0, b:0, a:0};
+            const roomPartImage = bodyPix.toMask(segmentation, fgColor, bgColor);
+            bodyPixMaks = roomPartImage;
+          }
+          else {
+            bodyPixMaks = null;
+          }
+
+          if (contineuAnimation) {
+            segmentTimerId = setTimeout(updateSegment, segmeteUpdateTime);
+          }
+        })
+        .catch(err => {
+          console.error('segmentPerson ERROR:', err);
+        })
+      }
+
+      function startCanvasVideo() {
+        writeCanvasString('initalizing BodyPix');
+        contineuAnimation = true;
+        animationId = window.requestAnimationFrame(updateCanvas);
+        canvasStream = canvas.captureStream();
+
+        updateSegment();
+        updateUI();
+      }
+
+      function writeCanvasString(str) {
+        const ctx = canvas.getContext('2d');
+        ctx.font = "64px serif";
+        ctx.fillText(str, 5, 100);
+        console.log(str);
+      }
+
+      function stopCanvasVideo() {
+        contineuAnimation = false;
+        if (segmentTimerId) {
+          clearTimeout(segmentTimerId);
+          segmentTimerId = null;
+        }
+
+        if (canvasStream) {
+          canvasStream.getTracks().forEach(track => {
+            console.log('stop canvas track:', track);
+            track.stop();
+          });
+          canvasStream = null;
+        }
+
+        updateUI();
+      }
+
+      function updateCanvas() {
+        drawCanvas(localVideo);
+        if (contineuAnimation) {
+          animationId = window.requestAnimationFrame(updateCanvas);
+        }
+      }
+
+      function drawCanvas(srcElement) {
+        const opacity = 1.0;
+        const flipHorizontal = false;
+        //const maskBlurAmount = 0;
+        const maskBlurAmount = 3;
+
+        // Draw the mask image on top of the original image onto a canvas.
+        // The colored part image will be drawn semi-transparent, with an opacity of
+        // 0.7, allowing for the original image to be visible under.
+        bodyPix.drawMask(
+          canvas, srcElement, bodyPixMaks, opacity, maskBlurAmount,
+          flipHorizontal
+        );
+      }
+
+      // -------- user media -----------
+
+      async function startVideo() {
+        //const mediaConstraints = {video: true, audio: true}; 
+        //const mediaConstraints = {video: true, audio: false}; 
+        const mediaConstraints = {video: {width: 640, height: 480}, audio: false}; 
+        disableElement('start_video_button');
+
+        localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints).catch(err => {
+          console.error('media ERROR:', err);
+          enableElement('start_video_button');
+          return;
+        });
+
+        localVideo.srcObject = localStream;
+        await localVideo.play().catch(err => console.error('local play ERROR:', err));
+        localVideo.volume = 0;
+
+        startCanvasVideo();
+        updateUI();
+      }
+
+      function stopVideo() {
+        stopCanvasVideo();
+
+        localVideo.pause();
+        localVideo.srcObject = null;
+        if (localStream) {
+          localStream.getTracks().forEach(track => {
+            console.log('stop track:', track);
+            track.stop();
+          });
+          localStream = null;
+        }
+
+        updateUI();
+      }
+
+      // -------- ayame -----------
+      async function connect() {
+        if (! localStream) {
+          console.warn('localStream NOT READY');
+          return;
+        }
+        let roomId = roomIdInput.value;
+        if ( (!roomId) || (roomId === '')) {
+          roomId = defaultRoomId
+        }
+
+        if (! ayameConn) {
+          ayameConn = Ayame.connection(signalingUrl, roomId);
+        }
+
+        if (! canvasStream) {
+          console.warn('canvas stream NOT READY');
+          return;
+        }
+        await ayameConn.connect(canvasStream);
+        console.log('ayame connected. state=', ayameConn.connectionState);
+
+        ayameConn.on('connect', () => {
+          console.log('ayame connected. ayame state=', ayameConn.connectionState);
+        });
+        ayameConn.on('disconnect', (e) => {
+          console.warn('ayame disconnect:', e);
+          console.log('ayame state=', ayameConn.connectionState);
+          if (remoteVideo.srcObject) {
+            remoteVideo.pause();
+            remoteVideo.srcObject = null;
+          }
+
+          ayameConn.disconnect();
+          isConnected = false;
+          updateUI();
+        });
+        ayameConn.on('addstream', async (e) => {
+          console.log('add stream. ayame state=', ayameConn.connectionState);
+          remoteVideo.srcObject = e.stream;
+          await remoteVideo.play().catch(err => console.warn('remote play ERROR:', err));
+        });      
+        ayameConn.on('removestream', () => {
+          console.log('remove stream. ayame state=', ayameConn.connectionState);
+          remoteVideo.pause();
+          remoteVideo.srcObject = null;
+        });
+
+        isConnected = true;
+        updateUI();
+      }
+
+      function disconnect() {
+        if (! ayameConn) {
+          return;
+        }
+        ayameConn.disconnect();
+        console.log('disconneting. ayame state=', ayameConn.connectionState);
+
+        if (remoteVideo.srcObject) {
+          remoteVideo.pause();
+          remoteVideo.srcObject = null;          
+        }
+
+        isConnected = false;
+        updateUI();
+      }
+
+      // --- UI control ----
+      function updateUI() {
+        if (localStream) {
+          disableElement('start_video_button');
+
+          if (isConnected) {
+            disableElement('stop_video_button');
+            disableElement('connect_button');
+            enabelElement('disconnect_button'); 
+          }
+          else {
+            enabelElement('stop_video_button');
+            enabelElement('connect_button');
+            disableElement('disconnect_button'); 
+          }
+        }
+        else {
+          enabelElement('start_video_button');
+          disableElement('stop_video_button');
+          
+          disableElement('connect_button');
+          disableElement('disconnect_button'); 
+        }
+
+        if (bodyPixNet && localStream) {
+          if (isConnected) {
+            disableElement('start_canvas_button'); 
+            disableElement('stop_canvas_button');  
+          }
+          else {
+            if (canvasStream) {
+              disableElement('start_canvas_button'); 
+              enabelElement('stop_canvas_button');  
+            }
+            else {
+              enabelElement('start_canvas_button'); 
+              disableElement('stop_canvas_button');  
+            }
+          }
+        }
+        else {
+          disableElement('start_canvas_button'); 
+          disableElement('stop_canvas_button');     
+        }
+
+        if (ayameConn) {
+          disableElement('room_id');
+        }
+        else {
+          enabelElement('room_id');
+        }
+      }
+      
+      function enabelElement(id) {
+        const element = document.getElementById(id);
+        if (element) {
+          element.removeAttribute('disabled');
+        }
+      }
+
+      function disableElement(id) {
+        const element = document.getElementById(id);
+        if (element) {
+          element.setAttribute('disabled', '1');
+        }    
+      }
+
+      updateUI();
+    </script>
+  </body>
+</html>
