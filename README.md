@@ -1,6 +1,6 @@
 ## bodypix_ayame
 
-WebRTC P2P video conference example, with person body and segmentation and mask. No audio support currently.
+WebRTC P2P video conference example, with person body segmentation and mask. No audio support currently.
 
 人物を検出し、背景や人物をマスクして、WebRTCのP2P通信を行うサンプル。次のライブラリ、サービスを利用。現在は映像のみで音声無し
 
