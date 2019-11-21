@@ -41,12 +41,12 @@
     &nbsp;
     <br />
     <span id="voice_radio_group">
-        Voice:
-        <input type="radio" name="pitch" value="mute_voice" onclick="setMute()">mute</input>
-        <input type="radio" name="pitch" value="low_pitch" checked="1" onclick="setPitch(0.75)">low pitch</input>
-        <input type="radio" name="pitch" value="hight_pitch" onclick="setPitch(1.4)">hight pitch</input>
-        <input type="radio" name="pitch" value="normal_pitch" onclick="setNormalPitch()">normal</input>
-      </span>
+      Voice:
+      <input type="radio" name="pitch" value="mute_voice" onclick="setMute()">mute</input>
+      <input type="radio" name="pitch" value="low_pitch" checked="1" onclick="setPitch(0.75)">low pitch</input>
+      <input type="radio" name="pitch" value="high_pitch" onclick="setPitch(1.4)">high pitch</input>
+      <input type="radio" name="pitch" value="normal_pitch" onclick="setNormalPitch()">normal</input>
+    </span>
     <br />
 
   </div>
@@ -58,7 +58,8 @@
     </div>
     <div style="grid-column:2;">
       masked video<br />
-      <canvas id="canvas" width="640px" height="480px" style="border: solid 1px black; width:160px; height:120px;"></canvas>
+      <canvas id="canvas" width="640px" height="480px"
+        style="border: solid 1px black; width:160px; height:120px;"></canvas>
       <br />
     </div>
     <audio id="palyback_audio" width="150px" height="40px" controls="1"></audio>
@@ -125,7 +126,7 @@
       normalGainNode.gain.value = 0;
       shiftGainNode.gain.value = 1.0;
     }
- 
+
     function setNormalPitch() {
       pitchRatio = 1.0;
       normalGainNode.gain.value = 1.0;
@@ -160,11 +161,11 @@
       if (audioSrcNode) {
         audioSrcNode.disconnect();
         audioSrcNode = null;
-      }    
+      }
     }
 
     function initSoundProcesser(stream) {
-      if (! audioContext) {
+      if (!audioContext) {
         audioContext = new window.AudioContext();
       }
       clearAudioNode();
@@ -200,7 +201,7 @@
 
         // Calculate the pitch shifted grain re-sampling and looping the input
         const grainData = new Float32Array(grainSize * 2);
-        for (let i = 0, j = 0.0; i < grainSize; i++, j += pitchRatio) {
+        for (let i = 0, j = 0.0; i < grainSize; i++ , j += pitchRatio) {
           const index = Math.floor(j) % grainSize;
           const a = inputData[index];
           const b = inputData[(index + 1) % grainSize];
@@ -228,7 +229,7 @@
       shiftGainNode.connect(mediaDestNode);
 
       modifiedStream.addTrack(voiceChangeStream.getAudioTracks()[0]);
-      
+
       function hannWindow(length) {
         const hwindow = new Float32Array(length);
         for (var i = 0; i < length; i++) {
@@ -240,7 +241,7 @@
       function linearInterpolation(a, b, t) {
         return a + (b - a) * t;
       };
-    }    
+    }
     // --- voice pitch shifter ---
 
 
