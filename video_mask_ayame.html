@@ -37,12 +37,17 @@
     <button id="connect_button" onclick="connect()">connect</button>
     <button id="disconnect_button" onclick="disconnect()">disconnect</button>
   </div>
-  <div>
-    local video, masked video<br />
-    <video id="local_video" width="640px" height="480px"
-      style="border: solid black 1px; width:160px; height:120px"></video>
-    <canvas id="canvas" width="640px" height="480px" style="border: solid 1px black; width:160px; height:120px;" />
-  </div>
+  <div style="display:grid; grid-template-rows: 1fr; grid-template-columns: 170px 170px;">
+    <div style="grid-column: 1;">
+      local video<br />
+      <video id="local_video" width="640px" height="480px"
+        style="border: solid black 1px; width:160px; height:120px"></video>
+    </div>
+    <div style="grid-column:2;">
+      masked video<br />
+      <canvas id="canvas" width="640px" height="480px" style="border: solid 1px black; width:160px; height:120px;" />
+    </div>
+  </div>  
   <div>
     remote video<br />
     <video id="remote_video" width="640px" height="480px"
