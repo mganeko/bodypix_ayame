@@ -18,13 +18,20 @@
 </head>
 
 <body>
-  Run on Chrome 78, using <a href="https://github.com/tensorflow/tfjs-models/tree/master/body-pix">BodyPix</a> and Ayame
-  Lite <a href="https://github.com/OpenAyame/ayame-web-sdk">with web SDK</a>
+  Run on Chrome 78, using <a href="https://github.com/tensorflow/tfjs-models/tree/master/body-pix">BodyPix</a>, Ayame
+  Lite <a href="https://github.com/OpenAyame/ayame-web-sdk">with web SDK</a>,
+  and <a href="https://github.com/urtzurd/html-audio">PitchSifter</a>
   <div>
     <button id="start_video_button" onclick="startVideo()">Start Video</button>
     <button id="stop_video_button" onclick="stopVideo()">Stop Video</button>
     &nbsp;
+    room:<input type="text" id="room_id" placeholder="type room-id here" />
+    <button id="connect_button" onclick="connect()">connect</button>
+    <button id="disconnect_button" onclick="disconnect()">disconnect</button>
+    <br />
+
     <span id="mask_radio_broup">
+      Video:
       <input type="radio" name="mask" value="mask_room" checked="1" onclick="setMask('room')">mask background</input>
       <input type="radio" name="mask" value="mask_person" onclick="setMask('person')">mask person</input>
       <input type="radio" name="mask" value="no_mask" onclick="setMask('none')">no mask</input>
@@ -36,14 +43,12 @@
     <span id="voice_radio_group">
         Voice:
         <input type="radio" name="pitch" value="mute_voice" onclick="setMute()">mute</input>
-        <input type="radio" name="pitch" value="low_pitch" checked="1" onclick="setPitch(0.7)">low pitch</input>
-        <input type="radio" name="pitch" value="hight_pitch" onclick="setPitch(1.5)">hight pitch</input>
+        <input type="radio" name="pitch" value="low_pitch" checked="1" onclick="setPitch(0.75)">low pitch</input>
+        <input type="radio" name="pitch" value="hight_pitch" onclick="setPitch(1.4)">hight pitch</input>
         <input type="radio" name="pitch" value="normal_pitch" onclick="setNormalPitch()">normal</input>
       </span>
     <br />
-    room:<input type="text" id="room_id" placeholder="type room-id here" />
-    <button id="connect_button" onclick="connect()">connect</button>
-    <button id="disconnect_button" onclick="disconnect()">disconnect</button>
+
   </div>
   <div style="display:grid; grid-template-rows: 1fr; grid-template-columns: 170px 170px;">
     <div style="grid-column: 1;">
@@ -57,7 +62,8 @@
       <br />
     </div>
     <audio id="palyback_audio" width="150px" height="40px" controls="1"></audio>
-  </div>  
+  </div>
+  <br />
   <div>
     remote video<br />
     <video id="remote_video" width="640px" height="480px" controls="1"
