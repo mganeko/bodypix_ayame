@@ -15,7 +15,8 @@ WebRTC P2P video conference example, with person body segmentation and mask. No 
 
 ### GitHub Pages
 
-- https://mganeko.github.io/bodypix_ayame/video_mask_ayame.html
+- https://mganeko.github.io/bodypix_ayame/video_mask_ayame.html ... vido mask and WebRTC P2P
+- https://mganeko.github.io/bodypix_ayame/video_mask.html ... video mask only
 
 ### Screen shot / 画面
 
