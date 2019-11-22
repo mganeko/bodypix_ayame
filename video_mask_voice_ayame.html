@@ -75,6 +75,8 @@
   </div>
 
   <script>
+    'use static'
+    
     const localVideo = document.getElementById('local_video');
     const remoteVideo = document.getElementById('remote_video');
     const canvas = document.getElementById('canvas');
@@ -94,15 +96,27 @@
     let modifiedStream = null;
 
     // --- voice pitch shifter ---
+    let audioContext = null;
+    let pitchStream = null;
+    function initWebAudio() {
+      if (!audioContext) {
+        audioContext = new window.AudioContext();
+      }
+      return audioContext;
+    }
     // move to pitch_shift.js
+    let pitchShifter = null;
 
     function stopAudio() {
       stopAudioPlayback();
-      clearAudioNode();
+      if (pitchShifter) {
+        pitchShifter.clearAudioNode();
+        pitchShifter = null;
+      }
     }
 
-    function startAudioPlayback() {
-      playbackAudio.srcObject = voiceChangeStream;
+    function startAudioPlayback(stream) {
+      playbackAudio.srcObject = stream;
       playbackAudio.play();
       playbackAudio.volume = 0.0;
     }
@@ -110,6 +124,24 @@
     function stopAudioPlayback() {
       playbackAudio.pause();
       playbackAudio.srcObject = null;
+    }
+
+    function setMute() {
+      if (pitchShifter) {
+        pitchShifter.setMute();
+      }
+    }
+
+    function setPitch(v) {
+      if (pitchShifter) {
+        pitchShifter.setPitch(v);
+      }
+    }
+
+    function setNormalPitch() {
+      if (pitchShifter) {
+        pitchShifter.setNormalPitch();
+      }
     }
 
     // ------- bodypix -------
@@ -269,9 +301,12 @@
       const maskStream = startCanvasVideo();
       modifiedStream.addTrack(maskStream.getVideoTracks()[0]);
 
-      const pitchStream = initSoundProcesser(localStream);
+      const ctx = initWebAudio();
+      pitchShifter = new PitchShifter(0.7);
+      pitchStream = pitchShifter.initSoundProcesser(ctx, localStream);
       modifiedStream.addTrack(pitchStream.getAudioTracks()[0]);
-      startAudioPlayback();
+      startAudioPlayback(pitchStream);
+      //startAudioPlayback(localStream); OK
       updateUI();
     }
 
