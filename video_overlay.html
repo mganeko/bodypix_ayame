@@ -26,12 +26,14 @@
     &nbsp;
   </div>
   <div>
-    local video<br />
+    local video, background image, masked video<br />
     <video id="local_video" width="640px" height="480px"
       style="border: solid black 1px; width:160px; height:120px"></video>
     <img id="back_image_preview" width="160px" height="120px" src="image/fuji.jpg" />
     <img id="back_image" width="640px" height="480px" src="image/fuji.jpg" style="display: none;" />
     <canvas id="front_canvas" width="640px" height="480px" style="border: solid 1px black; width:160px; height:120px;"></canvas>
+    <br />
+    select background image (640x480 only) <input type="file" id="background_image_input" onchange="backgroudImageSelected()"></input>
     <br />
     masked video<br />
     <canvas id="canvas" width="640px" height="480px" style="border: solid 1px black; width:320px; height:240px;" />
@@ -43,8 +45,14 @@
     const canvas = document.getElementById('canvas');
     //const ctx = canvas.getContext('2d');
     const canvasFront = document.getElementById('front_canvas');
+    const imgBackPreview = document.getElementById('back_image_preview');
     const imgBack = document.getElementById('back_image');
     const maskRadioGroup = document.getElementById('mask_radio_broup');
+    const inputBackgroundImage = document.getElementById('background_image_input');
+    let backgroudImageUrl = null;
+    imgBackPreview.ondrop = onPreviewFileDrop;
+    imgBackPreview.ondragover = onPreviewFileDragOver;
+    imgBackPreview.ondragleave = onPreviewFileLeave;
 
     let localStream = null;
     let canvasStream = null;
@@ -239,6 +247,53 @@
     }
 
     // -------- user media -----------
+
+    function backgroudImageSelected() {
+      console.log('background selected:', inputBackgroundImage.value);
+      if (inputBackgroundImage.files.length > 0) {
+        const file = nputBackgroundImage.files[0];
+        changeBackgroundImage(file);
+      }
+      else {
+        console.warn('NO file selected');
+        return;
+      }
+    }
+
+    function changeBackgroundImage(file) {
+      if (backgroudImageUrl) {
+        window.URL.revokeObjectURL(backgroudImageUrl);
+        backgroudImageUrl = null;
+      }
+      backgroudImageUrl = window.URL.createObjectURL(file);
+      imgBackPreview.src = backgroudImageUrl;
+      imgBack.src= backgroudImageUrl;
+    }
+
+    function onPreviewFileDrop(evt) {
+      evt.stopPropagation();
+      evt.preventDefault();
+
+      if (evt.dataTransfer.files.length > 0) {
+        const file = evt.dataTransfer.files[0];
+        console.log('dropped file=' + file.name);
+        changeBackgroundImage(file);
+        imgBackPreview.style.border = 'solid 0px black';
+      }    
+    }
+
+    function onPreviewFileDragOver(evt) {
+      evt.stopPropagation();
+      evt.preventDefault();　// <-- must to avoid open file in browser
+      //dropVideoDiv.style.backgroundColor = '#F0E0E0'; 
+      imgBackPreview.style.border = 'solid 3px red';
+    }
+    function onPreviewFileLeave(evt) {
+      ////evt.stopPropagation();
+      ////evt.preventDefault();
+      //dropVideoDiv.style.backgroundColor = '#EEEEEE'; 
+      imgBackPreview.style.border = 'solid 0px black';
+    }
 
     async function startVideo() {
       //const mediaConstraints = {video: true, audio: true}; 
