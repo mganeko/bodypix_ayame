@@ -1,0 +1,95 @@
+<html>
+  <head>
+    <!-- Load TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.2"></script>
+    <!-- Load BodyPix -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.0"></script>
+ </head>
+
+  <body>
+    <input type="file" id="image_input" onchange="onImageSelected()"></input>
+    <br />
+    <img id='image' crossorigin='anonymous'/>
+    <canvas id="canvas" />
+  </body>
+  <script>
+    const img = document.getElementById('image');
+    const imgInput = document.getElementById('image_input');
+    const canvas = document.getElementById('canvas');
+    let bodyPixNet = null;
+
+    async function loadModel() {
+      const net = await bodyPix.load(/** optional arguments, see below **/);
+      bodyPixNet = net;
+    }
+    loadModel();
+    
+    // return Promise
+    function segmentPerson(img, net) {
+      /**
+      * One of (see documentation below):
+      *   - net.segmentPerson
+      *   - net.segmentPersonParts
+      *   - net.segmentMultiPerson
+      *   - net.segmentMultiPersonParts
+      * See documentation below for details on each method.
+      */
+      const option = {
+        flipHorizontal: false,
+        internalResolution: 'medium',
+        segmentationThreshold: 0.7,
+        maxDetections: 4,
+        scoreThreshold: 0.5,
+        nmsRadius: 20,
+        minKeypointScore: 0.3,
+        refineSteps: 10
+      };
+
+      return net.segmentPerson(img, option);
+    }
+
+    function maskCanvas(canvas, img, segmentation) {
+      // 
+      const fgColor = { r: 255, g: 0, b: 0, a: 128 };
+      const bgColor = { r: 0, g: 0, b: 0, a: 0 };
+      
+      const colorMask = bodyPix.toMask(segmentation, fgColor, bgColor);
+      const opacity = 1.0;
+      const flipHorizontal = false;
+      const maskBlurAmount = 0;
+
+      bodyPix.drawMask(
+        canvas, img, colorMask, opacity, maskBlurAmount,
+        flipHorizontal);
+    }
+
+    function loadSelectedImage(img, file) {
+      if (img.src) {
+        window.URL.revokeObjectURL(img.src);
+        img.src = null;
+      }
+      img.src = window.URL.createObjectURL(file);
+    }
+
+    async function onImageSelected() {
+      if (imgInput.files.length > 0) {
+        const file = imgInput.files[0];
+        loadSelectedImage(img, file);
+        img.onload = async () => {
+          const segment = await segmentPerson(img, bodyPixNet).catch(err => {
+            console.error('bodyPix ERROR:', err);
+            return;
+          });
+
+          maskCanvas(canvas, img, segment);
+        };
+      }
+      else {
+        console.warn('NO file selected');
+        return;
+      }
+    }
+
+  
+  </script>
+</html>
