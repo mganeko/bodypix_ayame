@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>cocos-SSD WASM</title>
+  <!-- Load TensorFlow.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <!-- Load WASM backend -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm/dist/tf-backend-wasm.js"></script>
+
+  <!-- Load BodyPix -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"> </script>
+</head>
+
+<body>
+  Run on Chrome 83, using <a href="https://github.com/tensorflow/tfjs-models/tree/master/body-pix">BodyPix</a>
+  <div>
+    <button id="start_video_button" onclick="startVideo()">Start Video</button>
+    <button id="stop_video_button" onclick="stopVideo()">Stop Video</button>
+    &nbsp;
+  </div>
+  <div>
+    local video<br />
+    <video id="local_video" width="640px" height="480px"
+      style="border: solid black 1px; width:160px; height:120px"></video>
+    <br />
+    masked video<br />
+    <canvas id="canvas" width="640px" height="480px" style="border: solid 1px black; width:320px; height:240px;" />
+  </div>
+  <a href="https://github.com/mganeko/bodypix_ayame">GitHub</a>
+
+  <script>
+    "use strict"
+    const localVideo = document.getElementById('local_video');
+    const canvas = document.getElementById('canvas');
+
+    let localStream = null;
+    let canvasStream = null;
+    let cocosSsdNet = null;
+    let animationId = null;
+    let contineuAnimation = false;
+    let bodyPixMaks = null;
+    let segmentTimerId = null;
+
+    // ------- bodypix -------
+    async function loadModel() {
+      const net = await cocoSsd.load();
+      cocosSsdNet = net;
+      console.log('cocos-SSD ready');
+      updateUI();
+    }
+    //loadModel();
+    tf.setBackend('webgl').then(() => loadModel()); // lite & faster
+    //tf.setBackend('wasm').then(() => loadModel()); // heavy & slow
+    //tf.setBackend('cpu').then(() => loadModel()); // MOST heavy & slow
+
+    function updateSegment() {
+      const segmeteUpdateTime = 100; // ms
+      if (!cocoSsd || !cocosSsdNet) {
+        console.warn('cocoSsd net NOT READY');
+        return;
+      }
+
+      // detect(img, maxNum, minScore)
+      cocosSsdNet.detect(localVideo, 3, 0.3).then(predictions => {
+        console.log('Predictions: ', predictions);
+        showDetectResluts(predictions);
+
+        if (contineuAnimation) {
+          segmentTimerId = setTimeout(updateSegment, segmeteUpdateTime);
+        }
+      })
+      .catch(err => {
+        console.error('SSD error:', error);
+        contineuAnimation = false;
+      });
+    }
+
+    function showDetectResluts(predictions) {
+      //console.log('predict len=', predictions.length);
+      predictions.forEach(item => { console.log('class=%s score=%f', item.class, item.score);})
+    }
+
+    function startCanvasVideo() {
+      writeCanvasString('initalizing BodyPix');
+      contineuAnimation = true;
+      animationId = window.requestAnimationFrame(updateCanvas);
+      canvasStream = canvas.captureStream();
+
+      updateSegment();
+      updateUI();
+    }
+
+    function writeCanvasString(str) {
+      const ctx = canvas.getContext('2d');
+      ctx.font = "64px serif";
+      ctx.fillText(str, 5, 100);
+      console.log(str);
+    }
+
+    function stopCanvasVideo() {
+      contineuAnimation = false;
+      if (segmentTimerId) {
+        clearTimeout(segmentTimerId);
+        segmentTimerId = null;
+      }
+
+      if (canvasStream) {
+        canvasStream.getTracks().forEach(track => {
+          console.log('stop canvas track:', track);
+          track.stop();
+        });
+        canvasStream = null;
+      }
+
+      updateUI();
+    }
+
+    function updateCanvas() {
+      drawCanvas(localVideo);
+      if (contineuAnimation) {
+        animationId = window.requestAnimationFrame(updateCanvas);
+      }
+    }
+
+    function drawCanvas(srcElement) {
+      const opacity = 1.0;
+      const flipHorizontal = false;
+      //const maskBlurAmount = 0;
+      const maskBlurAmount = 3;
+
+    }
+
+    // -------- user media -----------
+
+    async function startVideo() {
+      //const mediaConstraints = {video: true, audio: true}; 
+      //const mediaConstraints = {video: true, audio: false}; 
+      const mediaConstraints = { video: { width: 640, height: 480 }, audio: false };
+      disableElement('start_video_button');
+
+      localStream = await navigator.mediaDevices.getUserMedia(mediaConstraints).catch(err => {
+        console.error('media ERROR:', err);
+        enableElement('start_video_button');
+        return;
+      });
+
+      localVideo.srcObject = localStream;
+      await localVideo.play().catch(err => console.error('local play ERROR:', err));
+      localVideo.volume = 0;
+
+      startCanvasVideo();
+      updateUI();
+    }
+
+    function stopVideo() {
+      stopCanvasVideo();
+
+      localVideo.pause();
+      localVideo.srcObject = null;
+      if (localStream) {
+        localStream.getTracks().forEach(track => {
+          console.log('stop track:', track);
+          track.stop();
+        });
+        localStream = null;
+      }
+
+      updateUI();
+    }
+
+
+    // --- UI control ----
+    function updateUI() {
+      if (localStream) {
+        disableElement('start_video_button');
+        enabelElement('stop_video_button');
+      }
+      else {
+        enabelElement('start_video_button');
+        disableElement('stop_video_button');
+      }
+    }
+
+    function enabelElement(id) {
+      const element = document.getElementById(id);
+      if (element) {
+        element.removeAttribute('disabled');
+      }
+    }
+
+    function disableElement(id) {
+      const element = document.getElementById(id);
+      if (element) {
+        element.setAttribute('disabled', '1');
+      }
+    }
+
+    updateUI();
+  </script>
+</body>
+
+</html>
