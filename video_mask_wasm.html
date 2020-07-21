@@ -8,6 +8,13 @@
   <!-- Load WASM backend -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-wasm/dist/tf-backend-wasm.js"></script>
 
+  <!-- Load WebGPU backend NOT found-->
+  <!--
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgpu@0.0.1-alpha.0/dist/backend_webgpu.js"></script>
+  -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgpu@0.0.1-alpha.0/dist/tf-webgpu.js"></script>
+
+
   <!-- Load BodyPix -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-pix@2.0"></script>
 </head>
@@ -63,6 +70,17 @@
     //tf.setBackend('webgl').then(() => loadModel()); // lite & faster
     tf.setBackend('wasm').then(() => loadModel()); // heavy & slow
     //tf.setBackend('cpu').then(() => loadModel()); // MOST heavy & slow
+    
+    // --- initalization error ---
+    // tf.ready().then(() =>{
+    //   console.log('tf.ready()');
+    //   tf.setBackend('webgpu').then(() => {
+    //     console.log('setBakend(webgpu) ready');
+    //     loadModel()
+    //   })
+    //   .catch(err => {console.error('webgpu ERROR:', err)});
+    // })
+    
 
     function setMask(type) {
       maskType = type;
